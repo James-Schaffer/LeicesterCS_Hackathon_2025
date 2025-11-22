@@ -1,4 +1,4 @@
-import Image from "next/image";
+"use client"
 import Map from '../components/Map'
 
 export default function About() {

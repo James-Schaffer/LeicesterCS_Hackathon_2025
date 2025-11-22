@@ -23,7 +23,7 @@ def getLat():
 def getLong():
 	return -1.226669 + (random() * (-1.039133 - -1.226669))
 
-data = {}
+data = []
 
 addWrite = inputManager.getInput(
 	str,
@@ -38,14 +38,14 @@ n = inputManager.getInput(
 )
 
 for i in range(0, n):
-	data[i] = {
+	data.append({
 		"name" : choice(names["first"])+" "+choice(names["last"]),
 		"description" : "A cool place to park",
 		"latitude" : getLat(),
 		"longitude" : getLong(),
 		"openCloseTimes" : times_week("6:30pm", "1:00am", "6:30pm", "1:00am", "10:00am", "6:00pm"),
 		"prices" : "£1 / hour"
-	}
+	})
 
 
 
