@@ -1,11 +1,13 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+// Imports
+import { useEffect, useState } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import parkJson from "../../parkingLocations.json";
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams } from "next/navigation";
 
+// ParkingSpot type: Stores parking data from JSON
 type ParkingSpot = {
   name: string;
   description: string;
@@ -18,45 +20,63 @@ type ParkingSpot = {
 
 export default function MapClient() {
   const searchParams = useSearchParams();
-  const lat = searchParams.get('lat');
-  const lon = searchParams.get('long'); 
+  const lat = searchParams.get("lat");
+  const lon = searchParams.get("long");
 
-  const latitude = lat ? parseFloat(lat) : 52.6100; // default: Leicester
-  const longitude = lon ? parseFloat(lon) : -1.1140;
+  const latitude = lat ? parseFloat(lat) : 52.62198494719722; // default: UOL
+  const longitude = lon ? parseFloat(lon) : -1.1246224316026914;
+
+  // Radius state (0.5km to 5km)
+  const [radiusMeters, setRadiusMeters] = useState(500);
 
   useEffect(() => {
-    const map = L.map('map', {
-      center: [latitude,longitude],
+    const map = L.map("map", {
+      center: [latitude, longitude],
       zoom: 15,
     });
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors',
+    // Current location marker
+    L.marker([latitude, longitude], {
+      icon: L.divIcon({
+        className: "current-location-wrapper",
+        html: `
+          <div class="current-location-label text-black">Your Location</div>
+          <img src="/icons/CurrentMarker.png" class="current-location-icon" />
+        `,
+        iconSize: [32, 49],
+        iconAnchor: [16, 49],
+      }),
     }).addTo(map);
 
-    const parkingIcon = L.icon({
-      iconUrl: '/icons/mapPinIcon.png',
-      iconSize: [32, 49],
-      iconAnchor: [16, 49],
-      popupAnchor: [0, -49],
-    });
+    // Draw dynamic radius circle
+    const circle = L.circle([latitude, longitude], {
+      radius: radiusMeters,
+      color: "#2563eb",
+      weight: 2,
+      fillColor: "#3b82f680",
+      fillOpacity: 0.3,
+    }).addTo(map);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OpenStreetMap contributors",
+    }).addTo(map);
 
     const parkingIcon_open = L.icon({
-      iconUrl: '/icons/mapPinIcon_open.png',
+      iconUrl: "/icons/mapPinIcon_open.png",
       iconSize: [32, 49],
       iconAnchor: [16, 49],
       popupAnchor: [0, -49],
     });
 
     const parkingIcon_busy = L.icon({
-      iconUrl: '/icons/mapPinIcon_busy.png',
+      iconUrl: "/icons/mapPinIcon_busy.png",
       iconSize: [32, 49],
       iconAnchor: [16, 49],
       popupAnchor: [0, -49],
     });
 
     const parkingIcon_closed = L.icon({
-      iconUrl: '/icons/mapPinIcon_closed.png',
+      iconUrl: "/icons/mapPinIcon_closed.png",
       iconSize: [32, 49],
       iconAnchor: [16, 49],
       popupAnchor: [0, -49],
@@ -64,48 +84,97 @@ export default function MapClient() {
 
     const spots = parkJson as ParkingSpot[];
     const nowTime = getLocalTime12h();
-    const nowDay = (new Date().getDay() + 6) % 7; // Adjust to make Monday=0, Sunday=6
-
-    console.log("Current time: "+nowTime);
+    const nowDay = (new Date().getDay() + 6) % 7;
 
     spots.forEach((spot) => {
-      console.log("Checking spot: "+spot.openCloseTimes);
-      console.log(spot.busyHours);
-      console.log(nowDay);
-      console.log(nowTime);
-      var todayOpenClose = getOpenTimes(spot.openCloseTimes, nowDay);
-      const isOpen = isTimeBetween(nowTime, todayOpenClose.open, todayOpenClose.close);
-
+      const todayOpenClose = getOpenTimes(spot.openCloseTimes, nowDay);
+      const isOpen = isTimeBetween(
+        nowTime,
+        todayOpenClose.open,
+        todayOpenClose.close
+      );
       const issBusy = isBusy(spot.busyHours, nowTime);
 
-      console.log(`Spot "${spot.name}" isOpen: ${isOpen}, issBusy: ${issBusy}`);
+      // Radius filter
+      if (
+        !isWithinRadius(
+          latitude,
+          longitude,
+          spot.latitude,
+          spot.longitude,
+          radiusMeters
+        )
+      ) {
+        return;
+      }
 
-      var txt = (
-        "<b>"+spot.name+"</b><br>"
-        +getOpenBusyHTML(isOpen, issBusy)+" : "+spot.prices+"<br><br>"
-        +spot.description+"<br><br>"
-        +spot.openCloseTimes
-      );
+      const txt =
+        "<b>" +
+        spot.name +
+        "</b><br>" +
+        getOpenBusyHTML(isOpen, issBusy) +
+        " : " +
+        spot.prices +
+        "<br><br>" +
+        spot.description +
+        "<br><br>" +
+        spot.openCloseTimes;
 
-      L.marker([spot.latitude, spot.longitude], { icon: (!isOpen ? parkingIcon_closed : (issBusy ? parkingIcon_busy : parkingIcon_open)) })
+      L.marker([spot.latitude, spot.longitude], {
+        icon: !isOpen
+          ? parkingIcon_closed
+          : issBusy
+          ? parkingIcon_busy
+          : parkingIcon_open,
+      })
         .addTo(map)
         .bindPopup(txt);
     });
 
-    return () => map.remove();
-  }, []);
+    return () => {
+      map.remove();
+    };
+  }, [radiusMeters]); // <-- rerun map when radius changes
 
-  return <div id="map" style={{ height: "100vh", width: "100%" }} />;
+  return (
+    <>
+      {/* Vertical radius control at right-center */}
+      <div className="absolute right-4 top-1/2 z-50 -translate-y-1/2 pointer-events-auto">
+        <div className="bg-black text-white p-3 rounded-xl shadow-lg flex flex-col items-center gap-3 border border-gray-700">
+          <span className="text-sm font-semibold">
+            {(radiusMeters / 1000).toFixed(1)} km
+          </span>
+
+          {/* Rotated range input to appear vertical */}
+          <div className="flex items-center justify-center h-48">
+            <input
+              type="range"
+              min={500}
+              max={5000}
+              step={100}
+              value={radiusMeters}
+              onChange={(e) => setRadiusMeters(Number(e.target.value))}
+              className="w-48 h-2 appearance-none bg-gray-700 rounded-full
+                       accent-white transform -rotate-90"
+              style={{ touchAction: "none" }}
+            />
+          </div>
+
+          <div className="text-xs text-gray-300">0.5 km — 5 km</div>
+        </div>
+      </div>
+
+      {/* Map container */}
+      <div id="map" style={{ height: "100vh", width: "100%" }} />
+    </>
+  );
 }
 
-
 function getOpenBusyHTML(open: boolean, busy: boolean) {
-  if (!open) {
+  if (!open)
     return '<span style="color: #ff0000; font-weight: bold;">Closed</span>';
-  }
-  if (busy) {
+  if (busy)
     return '<span style="color: #ec8906ff; font-weight: bold;">Open - Busy</span>';
-  }
   return '<span style="color: #1cb317ff; font-weight: bold;">Open</span>';
 }
 
@@ -113,10 +182,9 @@ function getLocalTime12h() {
   let t = new Date().toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
-    hour12: true
+    hour12: true,
   });
 
-  // Example: "12:05 AM" → "00:05 AM"
   if (t.startsWith("12:") && t.includes("AM")) {
     t = t.replace(/^12:/, "00:");
   }
@@ -124,8 +192,8 @@ function getLocalTime12h() {
   return t;
 }
 
-function isTimeBetween(target:String, start:String, end:String) {
-  const toMinutes = (t) => {
+function isTimeBetween(target: String, start: String, end: String) {
+  const toMinutes = (t: any) => {
     const [time, modifier] = t.split(" ");
     let [h, m] = time.split(":").map(Number);
 
@@ -139,20 +207,42 @@ function isTimeBetween(target:String, start:String, end:String) {
   const s = toMinutes(start);
   const e = toMinutes(end);
 
-  // Supports ranges that cross midnight (e.g., 10pm–2am)
   if (s < e) return s <= t && t <= e;
-  return t <= s && e <= t;
+  return t <= s || t <= e;
 }
 
-function getOpenTimes(openCloseTimes:String, day:number) {
+function getOpenTimes(openCloseTimes: String, day: number) {
   const tmp = openCloseTimes.split("<br>")[day];
-  const openClose = tmp.substring(tmp.indexOf(":") +2).split("-");
+  const openClose = tmp.substring(tmp.indexOf(":") + 2).split("-");
   return { open: openClose[0].trim(), close: openClose[1].trim() };
 }
 
-
-function isBusy(busyHours:String[], time:String) {
+function isBusy(busyHours: String[], time: String) {
   if (busyHours.length === 0) return false;
-  time = time.slice(0, 3) + "00" + time.slice(5); // Convert to nearest hour (floor)
+  time = time.slice(0, 3) + "00" + time.slice(5);
   return busyHours.includes(time.toLowerCase());
+}
+
+// Show markers within the radius
+function isWithinRadius(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+  radius: number
+) {
+  const R = 6371000;
+  const toRad = (v: number) => (v * Math.PI) / 180;
+
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distance = R * c;
+
+  return distance <= radius;
 }

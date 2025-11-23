@@ -30,3 +30,24 @@ body {
 .map {
   z-index: 100;
 }
+
+/* Location Marker */
+.current-location-wrapper {
+  text-align: center;
+  pointer-events: none;
+}
+
+.current-location-label {
+  padding: 3px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  display: inline-block;
+}
+
+.current-location-icon {
+  width: 32px;
+  height: 49px;
+  display: block;
+  margin: 0 auto;
+}
