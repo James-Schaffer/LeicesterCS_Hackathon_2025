@@ -1,6 +1,6 @@
 import json
 from inputSystem import *
-from random import random, choice
+from random import random, randint, choice
 
 names = {
 	"first" : ["New house", "Best", "Quick", "Safe", "Rundown", "Park and go", "Car protect", "Top", "James'", "React", "Node.js", "LeicesterCS", "Freemans", "Cheap"],
@@ -39,12 +39,26 @@ n = inputManager.getInput(
 )
 
 for i in range(0, n):
+	# Weekday times
+	o = f"{int(5+random()*5):02d}:{int(random()*60):02d} am"
+	c = f"{int(4+random()*8):02d}:{int(random()*60):02d} pm"
+
+	# Saturday and Sunday times
+	o_s = f"{int(5+random()*5):02d}:{int(random()*60):02d} am"
+	c_s = f"{int(5+random()*5):02d}:{int(random()*60):02d} pm"
+
+	bt = []
+
+	for i in range(0, randint(0,4)):
+		bt.append(f"{int(6+random()*5):02d}:00 {'am' if randint(0,1)==0 else 'pm'}")
+
 	data.append({
 		"name" : choice(names["first"])+" "+choice(names["last"]),
 		"description" : "A cool place to park",
 		"latitude" : getLat(),
 		"longitude" : getLong(),
-		"openCloseTimes" : times_week("6:30am", "1:00am", "6:30am", "1:00am", "10:00am", "6:00pm"),
+		"openCloseTimes" : times_week(o, c, o, c, o_s, c_s),
+		"busyHours" : bt,
 		"prices" : "£1 / hour"
 	})
 
