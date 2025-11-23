@@ -33,28 +33,28 @@ export default function HeroSearch() {
   };
 
   const handleCurrentLocation = () => {
-    //console.log("Fetching current location...");
+    // console.log("Fetching current location...");
     if (!navigator.geolocation) {
       setError("Geolocation is not supported by your browser");
       return;
     }
-    //console.log("Requesting geolocation...");
-
+    // console.log("Requesting geolocation...");
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        console.log("hi");
         const { latitude, longitude } = position.coords;
-        //console.log("Location recieved at : ", position.coords);
+        console.log("Location recieved at : ", position.coords);
         router.push(`/map?lat=${latitude}&long=${longitude}`);
       },
       () => setError("Unable to retrieve your location")
     );
-    
   };
 
   return (
     <div className="mt-8 flex flex-col items-center text-center px-4 sm:px-0">
       <p className="text-white text-lg sm:text-xl max-w-xl mb-4">
-        Find parking near you quickly and easily. Enter a location or use your current location.
+        Find parking near you quickly and easily. Enter a location or use your
+        current location.
       </p>
 
       <div className="flex flex-col sm:flex-row gap-2 w-full max-w-md">
